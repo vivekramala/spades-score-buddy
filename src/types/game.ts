@@ -66,14 +66,15 @@ export const calculatePlayerScore = (bid: number, tricks: number, roundNumber: n
       // Made nil: score = round number
       return roundNumber;
     } else {
-      // Failed nil: -1 per trick won
-      return -tricks;
+      // Failed nil: -round number
+      return -roundNumber;
     }
   } else {
     // Non-zero bid
     if (tricks >= bid) {
-      // Made bid: tricks × 2
-      return tricks * 2;
+      // Made bid: (bid × 2) + overtricks
+      const overtricks = tricks - bid;
+      return (bid * 2) + overtricks;
     } else {
       // Failed bid: -bid
       return -bid;

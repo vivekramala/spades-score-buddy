@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { SpadeIcon } from './SpadeIcon';
 import { ChevronLeft, Users } from 'lucide-react';
+import { StartGameModal } from './StartGameModal';
 
 interface GameSetupProps {
   onStartGame: (playerNames: string[]) => void;
@@ -9,6 +10,7 @@ interface GameSetupProps {
 
 export const GameSetup = ({ onStartGame, onBack }: GameSetupProps) => {
   const [playerNames, setPlayerNames] = useState(['', '', '', '']);
+  const [showStartModal, setShowStartModal] = useState(false);
 
   const handlePlayerNameChange = (index: number, value: string) => {
     const newNames = [...playerNames];
@@ -18,6 +20,10 @@ export const GameSetup = ({ onStartGame, onBack }: GameSetupProps) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setShowStartModal(true);
+  };
+
+  const handleConfirmStart = () => {
     const names = playerNames.map((name, i) => name.trim() || `Player ${i + 1}`);
     onStartGame(names);
   };
@@ -53,7 +59,7 @@ export const GameSetup = ({ onStartGame, onBack }: GameSetupProps) => {
             <div>
               <h2 className="font-display text-xl font-bold">Players</h2>
               <p className="text-sm text-muted-foreground">
-                Player 1 will be the first dealer
+                Player 1 will be the first distributor
               </p>
             </div>
           </div>
@@ -62,7 +68,7 @@ export const GameSetup = ({ onStartGame, onBack }: GameSetupProps) => {
             {[0, 1, 2, 3].map((index) => (
               <div key={index} className="animate-slide-up" style={{ animationDelay: `${index * 0.1}s` }}>
                 <label className="block text-sm font-medium mb-2 text-muted-foreground">
-                  Player {index + 1} {index === 0 && <span className="text-gold">(First Dealer)</span>}
+                  Player {index + 1} {index === 0 && <span className="text-gold">(First Distributor)</span>}
                 </label>
                 <input
                   type="text"
@@ -88,7 +94,7 @@ export const GameSetup = ({ onStartGame, onBack }: GameSetupProps) => {
             </li>
             <li className="flex items-start gap-2">
               <SpadeIcon size="sm" className="text-gold mt-0.5 flex-shrink-0" />
-              <span>Dealer rotates clockwise each round</span>
+              <span>Distributor rotates clockwise each round</span>
             </li>
             <li className="flex items-start gap-2">
               <SpadeIcon size="sm" className="text-gold mt-0.5 flex-shrink-0" />
@@ -112,6 +118,13 @@ export const GameSetup = ({ onStartGame, onBack }: GameSetupProps) => {
           </button>
         </div>
       </form>
+
+      <StartGameModal
+        open={showStartModal}
+        onConfirm={handleConfirmStart}
+        onCancel={() => setShowStartModal(false)}
+        playerNames={playerNames.map((name, i) => name.trim() || `Player ${i + 1}`)}
+      />
     </div>
   );
 };

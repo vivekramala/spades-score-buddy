@@ -40,7 +40,7 @@ export const BidEntry = ({
   }, [currentBidderIndex]);
 
   const handleBidChange = (newBid: number) => {
-    const clampedBid = Math.max(0, Math.min(roundNumber, newBid));
+    const clampedBid = Math.max(0, Math.min(13, newBid)); // Always allow 0-13
     setBid(clampedBid);
     
     // Validate immediately for last bidder
@@ -63,12 +63,12 @@ export const BidEntry = ({
 
   return (
     <div className="card-surface p-6 animate-slide-up">
-      {/* Header with dealer info */}
+      {/* Header with distributor info */}
       <div className="text-center mb-6">
         <div className="inline-flex items-center gap-2 px-4 py-2 bg-secondary/50 rounded-full mb-4">
           <SpadeIcon size="sm" className="text-gold" />
           <span className="text-sm text-muted-foreground">
-            Dealer: <span className="font-semibold text-foreground">{dealer?.name}</span>
+            Distributor: <span className="font-semibold text-foreground">{dealer?.name}</span>
           </span>
         </div>
         <h2 className="font-display text-xl font-bold text-gold">Bidding Phase</h2>
@@ -123,15 +123,15 @@ export const BidEntry = ({
           type="button"
           onClick={() => handleBidChange(bid + 1)}
           className="w-14 h-14 rounded-xl bg-card border border-border flex items-center justify-center transition-colors hover:bg-secondary active:scale-95"
-          disabled={bid >= roundNumber}
+          disabled={bid >= 13}
         >
           <Plus className="w-6 h-6" />
         </button>
       </div>
 
-      {/* Quick bid buttons */}
+      {/* Quick bid buttons - always show 0-13 */}
       <div className="flex flex-wrap justify-center gap-2 mb-6">
-        {Array.from({ length: Math.min(roundNumber + 1, 8) }, (_, i) => i).map((n) => {
+        {Array.from({ length: 14 }, (_, i) => i).map((n) => {
           const isDisabled = isLastBidder && currentBidsSum + n === roundNumber;
           return (
             <button
@@ -151,9 +151,6 @@ export const BidEntry = ({
             </button>
           );
         })}
-        {roundNumber >= 8 && (
-          <span className="text-muted-foreground text-sm self-center">...{roundNumber}</span>
-        )}
       </div>
 
       {/* Error message */}
