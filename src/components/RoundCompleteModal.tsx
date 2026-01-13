@@ -1,6 +1,7 @@
 import { Player } from '@/types/game';
 import { Crown, Trophy, Sparkles, ArrowRight } from 'lucide-react';
 import Confetti from 'react-confetti';
+import { useRef, useEffect, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -27,36 +28,58 @@ export const RoundCompleteModal = ({
   isLastRound,
   onNextRound,
 }: RoundCompleteModalProps) => {
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [confettiDimensions, setConfettiDimensions] = useState({ width: 400, height: 500 });
+  
   // Sort players by total score for display
   const sortedScores = [...allPlayerScores].sort((a, b) => b.totalScore - a.totalScore);
   const leaderId = highestScorer?.player.id;
 
+  useEffect(() => {
+    if (open && cardRef.current) {
+      const rect = cardRef.current.getBoundingClientRect();
+      setConfettiDimensions({
+        width: rect.width,
+        height: rect.height
+      });
+    }
+  }, [open]);
+
   return (
     <Dialog open={open}>
-      <DialogContent className="card-surface border-gold/30 max-w-md [&>*]:transition-all [&>*]:duration-500" hideCloseButton>
+      <DialogContent 
+        ref={cardRef}
+        className="card-surface border-gold/30 max-w-md animate-card-flip-in overflow-hidden" 
+        hideCloseButton
+      >
         {open && (
-          <div className="fixed inset-0 pointer-events-none z-50">
+          <div 
+            className="absolute inset-0 pointer-events-none z-10 overflow-hidden"
+          >
             <Confetti
-              width={window.innerWidth}
-              height={window.innerHeight}
+              width={confettiDimensions.width}
+              height={confettiDimensions.height}
               recycle={false}
-              numberOfPieces={100}
+              numberOfPieces={80}
               gravity={0.3}
+              initialVelocityX={{ min: -5, max: 5 }}
+              initialVelocityY={{ min: 0, max: 10 }}
+              confettiSource={{ x: confettiDimensions.width / 2 - 50, y: 0, w: 100, h: 0 }}
               colors={['#d4af37', '#f5e6a3', '#b8860b', '#ffd700']}
             />
           </div>
         )}
 
-        <DialogHeader className="text-center">
+        <DialogHeader>
           <div className="w-16 h-16 mx-auto mb-4 rounded-full gold-gradient flex items-center justify-center">
             <Trophy className="w-8 h-8 text-spade-black" />
           </div>
-          <DialogTitle className="font-display text-2xl gold-text">
+          <DialogTitle className="font-display text-2xl gold-text text-center w-full">
             Round {roundNumber} Complete!
           </DialogTitle>
         </DialogHeader>
 
-        <div className="my-4 space-y-4">
+        <div className="my-4 space-y-4 relative z-20">
           {/* Round Winners */}
           {roundWinners.length > 0 && (
             <div className="bg-gold/20 border border-gold/50 rounded-xl p-4 animate-slide-up">
@@ -89,7 +112,7 @@ export const RoundCompleteModal = ({
               <Sparkles className="w-4 h-4 text-gold" />
             </div>
             <div className="grid grid-cols-2 gap-2">
-              {sortedScores.map((entry, idx) => {
+              {sortedScores.map((entry) => {
                 const isLeader = entry.player.id === leaderId;
                 return (
                   <div
@@ -123,7 +146,7 @@ export const RoundCompleteModal = ({
 
         <button
           onClick={onNextRound}
-          className="btn-primary w-full py-4 rounded-xl text-lg flex items-center justify-center gap-2"
+          className="btn-primary w-full py-4 rounded-xl text-lg flex items-center justify-center gap-2 relative z-20"
         >
           {isLastRound ? 'View Final Results' : 'Ready for Next Round'}
           <ArrowRight className="w-5 h-5" />

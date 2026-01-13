@@ -25,8 +25,7 @@ export const RoundStartModal = ({
 }: RoundStartModalProps) => {
   return (
     <Dialog open={open}>
-      <DialogContent className="card-surface border-gold/30 max-w-md perspective-1000" hideCloseButton>
-        <div className="animate-flip-in transform-style-3d">
+      <DialogContent className="card-surface border-gold/30 max-w-md animate-card-flip-in" hideCloseButton>
         <DialogHeader className="text-center">
           <div className="w-16 h-16 mx-auto mb-4 rounded-full gold-gradient flex items-center justify-center animate-pulse-gold">
             <SpadeIcon size="md" className="text-spade-black" />
@@ -60,7 +59,6 @@ export const RoundStartModal = ({
         >
           Ready for Bidding
         </button>
-        </div>
       </DialogContent>
     </Dialog>
   );
