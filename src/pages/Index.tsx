@@ -5,10 +5,19 @@ import { GameScreen } from '@/components/GameScreen';
 import { WinnerScreen } from '@/components/WinnerScreen';
 
 const Index = () => {
-  const { gameState, startNewGame, addRound, undoLastRound, resetGame, goToSetup } = useGame();
+  const {
+    gameState,
+    startNewGame,
+    submitBid,
+    submitTricks,
+    undoLastRound,
+    resetGame,
+    goToSetup,
+    validateBid,
+  } = useGame();
 
-  const handleStartNewGame = (playerNames: string[], targetScore: number) => {
-    startNewGame(playerNames, targetScore);
+  const handleStartNewGame = (playerNames: string[]) => {
+    startNewGame(playerNames);
   };
 
   switch (gameState.currentStep) {
@@ -19,13 +28,16 @@ const Index = () => {
       return <GameSetup onStartGame={handleStartNewGame} onBack={resetGame} />;
 
     case 'playing':
-      if (!gameState.game) return null;
+      if (!gameState.game || !gameState.roundState) return null;
       return (
         <GameScreen
           game={gameState.game}
-          onAddRound={addRound}
+          roundState={gameState.roundState}
+          onSubmitBid={submitBid}
+          onSubmitTricks={submitTricks}
           onUndo={undoLastRound}
           onEndGame={resetGame}
+          validateBid={validateBid}
         />
       );
 

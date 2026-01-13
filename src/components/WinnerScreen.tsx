@@ -1,6 +1,6 @@
 import { Game } from '@/types/game';
 import { SpadeIcon } from './SpadeIcon';
-import { Trophy, RotateCcw, Home } from 'lucide-react';
+import { Trophy, RotateCcw, Home, Medal } from 'lucide-react';
 import Confetti from 'react-confetti';
 import { useEffect, useState } from 'react';
 
@@ -20,11 +20,9 @@ export const WinnerScreen = ({ game, onNewGame, onHome }: WinnerScreenProps) => 
     return () => clearTimeout(timer);
   }, []);
 
-  const winningTeam = game.winner ? game.teams[game.winner] : null;
-  const losingTeam = game.winner === 'A' ? game.teams.B : game.teams.A;
-  const winningPlayers = game.players.filter(p => p.teamId === game.winner);
-
-  if (!winningTeam) return null;
+  // Sort players by final score
+  const sortedPlayers = [...game.players].sort((a, b) => b.totalScore - a.totalScore);
+  const winner = sortedPlayers[0];
 
   return (
     <div className="min-h-screen felt-texture flex flex-col items-center justify-center p-6 relative overflow-hidden">
@@ -48,43 +46,60 @@ export const WinnerScreen = ({ game, onNewGame, onHome }: WinnerScreenProps) => 
 
         {/* Winner Announcement */}
         <h1 className="font-display text-4xl md:text-5xl font-bold gold-text mb-4">
-          {winningTeam.name} Wins!
+          {winner.name} Wins!
         </h1>
 
         <p className="text-xl text-foreground/80 mb-2">
-          {winningPlayers.map(p => p.name).join(' & ')}
+          {winner.totalScore} points
         </p>
 
-        {/* Final Score */}
+        {/* Final Standings */}
         <div className="team-card my-8">
-          <div className="text-center">
-            <p className="text-sm opacity-60 mb-2">Final Score</p>
-            <div className="flex items-center justify-center gap-8">
-              <div className={game.winner === 'A' ? 'text-gold' : 'opacity-50'}>
-                <p className="font-display text-3xl font-bold">{game.teams.A.totalScore}</p>
-                <p className="text-sm">{game.teams.A.name}</p>
+          <h2 className="font-display text-lg font-semibold text-gold mb-4 flex items-center justify-center gap-2">
+            <Medal className="w-5 h-5" />
+            Final Standings
+          </h2>
+          <div className="space-y-3">
+            {sortedPlayers.map((player, index) => (
+              <div
+                key={player.id}
+                className={`flex items-center justify-between p-3 rounded-lg ${
+                  index === 0 ? 'bg-gold/10 border border-gold/30' : 'bg-secondary/30'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
+                    index === 0 ? 'gold-gradient text-spade-black' :
+                    index === 1 ? 'bg-gray-300 text-gray-700' :
+                    index === 2 ? 'bg-amber-700 text-white' :
+                    'bg-secondary text-muted-foreground'
+                  }`}>
+                    {index + 1}
+                  </span>
+                  <span className={`font-medium ${index === 0 ? 'text-gold' : ''}`}>
+                    {player.name}
+                  </span>
+                </div>
+                <span className={`font-display text-xl font-bold ${
+                  player.totalScore < 0 ? 'text-destructive' : index === 0 ? 'text-gold' : ''
+                }`}>
+                  {player.totalScore}
+                </span>
               </div>
-              <div className="text-2xl opacity-30">vs</div>
-              <div className={game.winner === 'B' ? 'text-gold' : 'opacity-50'}>
-                <p className="font-display text-3xl font-bold">{game.teams.B.totalScore}</p>
-                <p className="text-sm">{game.teams.B.name}</p>
-              </div>
-            </div>
+            ))}
           </div>
 
           <div className="mt-6 pt-6 border-t border-gray-200">
-            <div className="grid grid-cols-3 gap-4 text-center text-sm">
+            <div className="grid grid-cols-2 gap-4 text-center text-sm">
               <div>
                 <p className="font-semibold text-lg">{game.rounds.length}</p>
-                <p className="opacity-60">Rounds</p>
+                <p className="opacity-60">Rounds Played</p>
               </div>
               <div>
-                <p className="font-semibold text-lg">{game.teams.A.totalBags + game.teams.B.totalBags}</p>
-                <p className="opacity-60">Total Bags</p>
-              </div>
-              <div>
-                <p className="font-semibold text-lg">{Math.abs(winningTeam.totalScore - losingTeam.totalScore)}</p>
-                <p className="opacity-60">Point Margin</p>
+                <p className="font-semibold text-lg">
+                  {sortedPlayers[0].totalScore - sortedPlayers[1].totalScore}
+                </p>
+                <p className="opacity-60">Winning Margin</p>
               </div>
             </div>
           </div>
