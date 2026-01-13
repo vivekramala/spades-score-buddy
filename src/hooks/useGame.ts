@@ -89,7 +89,7 @@ export const useGame = () => {
       const playerData: PlayerRoundData[] = prev.game.players.map(player => {
         const bid = bids.get(player.id) || 0;
         const tricks = tricksData.get(player.id) || 0;
-        const score = calculatePlayerScore(bid, tricks);
+        const score = calculatePlayerScore(bid, tricks, roundNumber);
         return {
           playerId: player.id,
           bid,
