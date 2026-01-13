@@ -1,29 +1,35 @@
-import { useState } from 'react';
-import { Game } from '@/types/game';
+import { Game, CurrentRoundState, getBiddingOrder } from '@/types/game';
 import { SpadeIcon } from './SpadeIcon';
-import { ScoreEntry } from './ScoreEntry';
-import { Plus, RotateCcw, Home, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react';
+import { BidEntry } from './BidEntry';
+import { TricksEntry } from './TricksEntry';
+import { RotateCcw, Home, Crown, Layers } from 'lucide-react';
 
 interface GameScreenProps {
   game: Game;
-  onAddRound: (teamABid: number, teamATricks: number, teamBBid: number, teamBTricks: number) => void;
+  roundState: CurrentRoundState;
+  onSubmitBid: (playerId: string, bid: number) => void;
+  onSubmitTricks: (tricks: Map<string, number>) => void;
   onUndo: () => void;
   onEndGame: () => void;
+  validateBid: (bid: number, isLastBidder: boolean, currentBidsSum: number, roundNumber: number) => { valid: boolean; message?: string };
 }
 
-export const GameScreen = ({ game, onAddRound, onUndo, onEndGame }: GameScreenProps) => {
-  const [showScoreEntry, setShowScoreEntry] = useState(false);
+export const GameScreen = ({
+  game,
+  roundState,
+  onSubmitBid,
+  onSubmitTricks,
+  onUndo,
+  onEndGame,
+  validateBid,
+}: GameScreenProps) => {
+  const currentRound = game.currentRound;
+  const dealer = game.players.find(p => p.position === game.dealerPosition);
+  const biddingOrder = getBiddingOrder(game.dealerPosition, game.players);
+  const firstBidder = biddingOrder[0];
 
-  const teamA = game.teams.A;
-  const teamB = game.teams.B;
-
-  const handleScoreSubmit = (teamABid: number, teamATricks: number, teamBBid: number, teamBTricks: number) => {
-    onAddRound(teamABid, teamATricks, teamBBid, teamBTricks);
-    setShowScoreEntry(false);
-  };
-
-  const teamABagPenalties = Math.floor(teamA.totalBags / game.bagPenaltyThreshold);
-  const teamBBagPenalties = Math.floor(teamB.totalBags / game.bagPenaltyThreshold);
+  // Sort players by score for leaderboard
+  const sortedPlayers = [...game.players].sort((a, b) => b.totalScore - a.totalScore);
 
   return (
     <div className="min-h-screen felt-texture flex flex-col">
@@ -35,10 +41,13 @@ export const GameScreen = ({ game, onAddRound, onUndo, onEndGame }: GameScreenPr
               <SpadeIcon size="sm" className="text-spade-black" />
             </div>
             <div>
-              <h1 className="font-display text-xl font-bold gold-text">Spades</h1>
-              <p className="text-xs text-muted-foreground">
-                Target: {game.targetScore} pts
-              </p>
+              <h1 className="font-display text-xl font-bold gold-text">
+                Round {currentRound} of 13
+              </h1>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Layers className="w-3 h-3" />
+                <span>{currentRound} cards each</span>
+              </div>
             </div>
           </div>
           <button
@@ -51,198 +60,137 @@ export const GameScreen = ({ game, onAddRound, onUndo, onEndGame }: GameScreenPr
         </div>
       </header>
 
-      {/* Score Cards */}
-      <div className="p-4 md:p-6">
-        <div className="grid md:grid-cols-2 gap-4 max-w-4xl mx-auto mb-6">
-          <TeamScoreCard
-            team={teamA}
-            players={game.players.filter(p => p.teamId === 'A')}
-            targetScore={game.targetScore}
-            bagPenalties={teamABagPenalties}
-            isLeading={teamA.totalScore > teamB.totalScore}
-          />
-          <TeamScoreCard
-            team={teamB}
-            players={game.players.filter(p => p.teamId === 'B')}
-            targetScore={game.targetScore}
-            bagPenalties={teamBBagPenalties}
-            isLeading={teamB.totalScore > teamA.totalScore}
-          />
+      {/* Round Info Banner */}
+      <div className="bg-secondary/30 p-3 border-b border-border/30">
+        <div className="max-w-4xl mx-auto flex flex-wrap items-center justify-center gap-4 text-sm">
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground">Dealer:</span>
+            <span className="font-semibold">{dealer?.name}</span>
+          </div>
+          <div className="w-px h-4 bg-border" />
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground">First to bid:</span>
+            <span className="font-semibold">{firstBidder?.name}</span>
+          </div>
         </div>
       </div>
 
-      {/* Rounds History */}
-      <div className="flex-1 p-4 md:p-6 pt-0">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-display text-lg font-semibold text-gold">
-              Round History
-            </h2>
-            {game.rounds.length > 0 && (
-              <button
-                onClick={onUndo}
-                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <RotateCcw className="w-4 h-4" />
-                Undo Last
-              </button>
+      {/* Main Content */}
+      <div className="flex-1 p-4 md:p-6 overflow-auto">
+        <div className="max-w-4xl mx-auto grid lg:grid-cols-2 gap-6">
+          {/* Left: Score Entry */}
+          <div>
+            {roundState.phase === 'bidding' ? (
+              <BidEntry
+                players={game.players}
+                dealerPosition={game.dealerPosition}
+                roundNumber={currentRound}
+                currentBids={roundState.bids}
+                currentBidderIndex={roundState.currentBidderIndex}
+                onSubmitBid={onSubmitBid}
+                validateBid={validateBid}
+              />
+            ) : (
+              <TricksEntry
+                players={game.players}
+                bids={roundState.bids}
+                roundNumber={currentRound}
+                onSubmitTricks={onSubmitTricks}
+              />
             )}
           </div>
 
-          {game.rounds.length === 0 ? (
-            <div className="card-surface p-8 text-center">
-              <p className="text-muted-foreground">
-                No rounds yet. Tap the button below to add your first round.
-              </p>
-            </div>
-          ) : (
-            <div className="card-surface overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th className="py-3 px-4 text-left text-sm font-semibold text-muted-foreground">
-                        Round
-                      </th>
-                      <th className="py-3 px-4 text-center text-sm font-semibold text-gold" colSpan={2}>
-                        {teamA.name}
-                      </th>
-                      <th className="py-3 px-4 text-center text-sm font-semibold text-foreground" colSpan={2}>
-                        {teamB.name}
-                      </th>
-                    </tr>
-                    <tr className="border-b border-border/50 text-xs text-muted-foreground">
-                      <th></th>
-                      <th className="py-2 px-2">Bid/Tricks</th>
-                      <th className="py-2 px-2">Score</th>
-                      <th className="py-2 px-2">Bid/Tricks</th>
-                      <th className="py-2 px-2">Score</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {game.rounds.map((round) => (
-                      <tr key={round.id} className="border-b border-border/30 hover:bg-secondary/30 transition-colors">
-                        <td className="py-3 px-4 font-medium">{round.roundNumber}</td>
-                        <td className="py-3 px-2 text-center text-sm">
-                          {round.teamABid}/{round.teamATricks}
-                          {round.teamABags > 0 && (
-                            <span className="text-warning ml-1">(+{round.teamABags})</span>
-                          )}
-                        </td>
-                        <td className={`py-3 px-2 text-center font-semibold ${
-                          round.teamAScore >= 0 ? 'text-success' : 'text-destructive'
-                        }`}>
-                          {round.teamAScore > 0 ? '+' : ''}{round.teamAScore}
-                        </td>
-                        <td className="py-3 px-2 text-center text-sm">
-                          {round.teamBBid}/{round.teamBTricks}
-                          {round.teamBBags > 0 && (
-                            <span className="text-warning ml-1">(+{round.teamBBags})</span>
-                          )}
-                        </td>
-                        <td className={`py-3 px-2 text-center font-semibold ${
-                          round.teamBScore >= 0 ? 'text-success' : 'text-destructive'
-                        }`}>
-                          {round.teamBScore > 0 ? '+' : ''}{round.teamBScore}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          {/* Right: Leaderboard */}
+          <div className="space-y-4">
+            {/* Current Standings */}
+            <div className="card-surface p-4">
+              <h2 className="font-display text-lg font-semibold text-gold mb-4 flex items-center gap-2">
+                <Crown className="w-5 h-5" />
+                Standings
+              </h2>
+              <div className="space-y-2">
+                {sortedPlayers.map((player, index) => (
+                  <div
+                    key={player.id}
+                    className={`flex items-center justify-between p-3 rounded-lg ${
+                      index === 0 ? 'bg-gold/10 border border-gold/30' : 'bg-secondary/30'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className={`w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold ${
+                        index === 0 ? 'gold-gradient text-spade-black' : 'bg-secondary text-muted-foreground'
+                      }`}>
+                        {index + 1}
+                      </span>
+                      <span className="font-medium">{player.name}</span>
+                    </div>
+                    <span className={`font-display text-xl font-bold ${
+                      player.totalScore < 0 ? 'text-destructive' : index === 0 ? 'text-gold' : ''
+                    }`}>
+                      {player.totalScore}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
-          )}
-        </div>
-      </div>
 
-      {/* Add Round Button */}
-      <div className="sticky bottom-0 p-4 bg-gradient-to-t from-background via-background to-transparent">
-        <div className="max-w-4xl mx-auto">
-          <button
-            onClick={() => setShowScoreEntry(true)}
-            className="btn-primary w-full py-4 text-lg rounded-xl"
-          >
-            <Plus className="w-5 h-5" />
-            Add Round {game.rounds.length + 1}
-          </button>
-        </div>
-      </div>
-
-      {/* Score Entry Modal */}
-      {showScoreEntry && (
-        <ScoreEntry
-          teamAName={teamA.name}
-          teamBName={teamB.name}
-          roundNumber={game.rounds.length + 1}
-          onSubmit={handleScoreSubmit}
-          onCancel={() => setShowScoreEntry(false)}
-        />
-      )}
-    </div>
-  );
-};
-
-interface TeamScoreCardProps {
-  team: Game['teams']['A'];
-  players: Game['players'];
-  targetScore: number;
-  bagPenalties: number;
-  isLeading: boolean;
-}
-
-const TeamScoreCard = ({ team, players, targetScore, bagPenalties, isLeading }: TeamScoreCardProps) => {
-  const progress = Math.min((team.totalScore / targetScore) * 100, 100);
-  const isNegative = team.totalScore < 0;
-
-  return (
-    <div className={`team-card relative overflow-hidden ${isLeading ? 'ring-2 ring-gold' : ''}`}>
-      {isLeading && (
-        <div className="absolute top-3 right-3">
-          <TrendingUp className="w-5 h-5 text-gold" />
-        </div>
-      )}
-      
-      <div className="flex items-center gap-3 mb-4">
-        <div className={`w-10 h-10 rounded-full ${team.id === 'A' ? 'gold-gradient' : 'bg-gray-600'} flex items-center justify-center`}>
-          <SpadeIcon size="sm" className={team.id === 'A' ? 'text-spade-black' : 'text-white'} />
-        </div>
-        <div>
-          <h3 className="font-display text-lg font-bold">{team.name}</h3>
-          <p className="text-xs opacity-60">
-            {players.map(p => p.name).join(' & ')}
-          </p>
-        </div>
-      </div>
-
-      <div className="mb-4">
-        <div className={`font-display text-4xl font-bold ${isNegative ? 'text-red-600' : ''}`}>
-          {team.totalScore}
-          <span className="text-sm font-normal opacity-50 ml-2">/ {targetScore}</span>
-        </div>
-      </div>
-
-      {/* Progress bar */}
-      <div className="h-2 bg-gray-200 rounded-full overflow-hidden mb-3">
-        <div
-          className={`h-full transition-all duration-500 ${isNegative ? 'bg-red-500' : 'gold-gradient'}`}
-          style={{ width: `${Math.max(0, progress)}%` }}
-        />
-      </div>
-
-      {/* Bags indicator */}
-      <div className="flex items-center justify-between text-sm">
-        <div className="flex items-center gap-1">
-          <span className="opacity-60">Bags:</span>
-          <span className={`font-semibold ${team.totalBags >= 8 ? 'text-orange-500' : ''}`}>
-            {team.totalBags % 10}/10
-          </span>
-        </div>
-        {bagPenalties > 0 && (
-          <div className="flex items-center gap-1 text-red-500">
-            <AlertTriangle className="w-4 h-4" />
-            <span className="text-xs">-{bagPenalties * 100} penalty</span>
+            {/* Round History */}
+            {game.rounds.length > 0 && (
+              <div className="card-surface p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="font-display text-lg font-semibold text-gold">
+                    History
+                  </h2>
+                  <button
+                    onClick={onUndo}
+                    className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    Undo
+                  </button>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border">
+                        <th className="py-2 px-2 text-left text-muted-foreground font-medium">Rd</th>
+                        {game.players.map((player) => (
+                          <th key={player.id} className="py-2 px-2 text-center text-muted-foreground font-medium truncate max-w-[60px]">
+                            {player.name.split(' ')[0]}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {game.rounds.slice().reverse().slice(0, 5).map((round) => (
+                        <tr key={round.id} className="border-b border-border/30">
+                          <td className="py-2 px-2 font-medium">{round.roundNumber}</td>
+                          {game.players.map((player) => {
+                            const data = round.playerData.find(d => d.playerId === player.id);
+                            if (!data) return <td key={player.id} className="py-2 px-2">-</td>;
+                            return (
+                              <td key={player.id} className="py-2 px-2 text-center">
+                                <div className="text-xs text-muted-foreground">{data.bid}/{data.tricks}</div>
+                                <div className={`font-semibold ${data.score >= 0 ? 'text-success' : 'text-destructive'}`}>
+                                  {data.score > 0 ? '+' : ''}{data.score}
+                                </div>
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {game.rounds.length > 5 && (
+                  <p className="text-xs text-muted-foreground text-center mt-2">
+                    Showing last 5 rounds
+                  </p>
+                )}
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

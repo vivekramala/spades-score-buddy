@@ -1,152 +1,160 @@
 import { useState, useCallback } from 'react';
-import { Game, Round, Player, GameState } from '@/types/game';
+import { Game, Round, Player, GameState, CurrentRoundState, PlayerRoundData, calculatePlayerScore, getBiddingOrder } from '@/types/game';
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
-
-const calculateRoundScore = (bid: number, tricks: number): { score: number; bags: number } => {
-  if (tricks >= bid) {
-    const bags = tricks - bid;
-    const score = bid * 10 + bags;
-    return { score, bags };
-  } else {
-    // Set - negative points equal to bid * 10
-    return { score: -(bid * 10), bags: 0 };
-  }
-};
 
 export const useGame = () => {
   const [gameState, setGameState] = useState<GameState>({
     game: null,
     currentStep: 'home',
+    roundState: null,
   });
 
-  const startNewGame = useCallback((
-    playerNames: string[],
-    targetScore: number = 500,
-    bagPenaltyThreshold: number = 10
-  ) => {
-    const players: Player[] = [
-      { id: generateId(), name: playerNames[0] || 'Player 1', teamId: 'A' },
-      { id: generateId(), name: playerNames[1] || 'Player 2', teamId: 'B' },
-      { id: generateId(), name: playerNames[2] || 'Player 3', teamId: 'A' },
-      { id: generateId(), name: playerNames[3] || 'Player 4', teamId: 'B' },
-    ];
+  const startNewGame = useCallback((playerNames: string[]) => {
+    const players: Player[] = playerNames.map((name, index) => ({
+      id: generateId(),
+      name: name || `Player ${index + 1}`,
+      position: index as 0 | 1 | 2 | 3,
+      totalScore: 0,
+    }));
 
     const game: Game = {
       id: generateId(),
       players,
-      teams: {
-        A: {
-          id: 'A',
-          name: 'Team A',
-          players: players.filter(p => p.teamId === 'A'),
-          totalScore: 0,
-          totalBags: 0,
-        },
-        B: {
-          id: 'B',
-          name: 'Team B',
-          players: players.filter(p => p.teamId === 'B'),
-          totalScore: 0,
-          totalBags: 0,
-        },
-      },
       rounds: [],
-      targetScore,
-      bagPenaltyThreshold,
+      currentRound: 1,
+      dealerPosition: 0, // Player 1 is first dealer
       winner: null,
       createdAt: new Date(),
       isComplete: false,
     };
 
+    // Initialize round state for bidding
+    const roundState: CurrentRoundState = {
+      phase: 'bidding',
+      bids: new Map(),
+      tricks: new Map(),
+      currentBidderIndex: 0,
+    };
+
     setGameState({
       game,
       currentStep: 'playing',
+      roundState,
     });
   }, []);
 
-  const addRound = useCallback((
-    teamABid: number,
-    teamATricks: number,
-    teamBBid: number,
-    teamBTricks: number
-  ) => {
+  const submitBid = useCallback((playerId: string, bid: number) => {
     setGameState(prev => {
-      if (!prev.game) return prev;
+      if (!prev.game || !prev.roundState) return prev;
 
-      const teamAResult = calculateRoundScore(teamABid, teamATricks);
-      const teamBResult = calculateRoundScore(teamBBid, teamBTricks);
+      const newBids = new Map(prev.roundState.bids);
+      newBids.set(playerId, bid);
 
-      const newRound: Round = {
-        id: generateId(),
-        roundNumber: prev.game.rounds.length + 1,
-        teamABid,
-        teamATricks,
-        teamAScore: teamAResult.score,
-        teamABags: teamAResult.bags,
-        teamBBid,
-        teamBTricks,
-        teamBScore: teamBResult.score,
-        teamBBags: teamBResult.bags,
+      const biddingOrder = getBiddingOrder(prev.game.dealerPosition, prev.game.players);
+      const nextBidderIndex = prev.roundState.currentBidderIndex + 1;
+
+      // Check if all bids are in
+      if (nextBidderIndex >= 4) {
+        return {
+          ...prev,
+          roundState: {
+            ...prev.roundState,
+            bids: newBids,
+            phase: 'tricks',
+            currentBidderIndex: 0,
+          },
+        };
+      }
+
+      return {
+        ...prev,
+        roundState: {
+          ...prev.roundState,
+          bids: newBids,
+          currentBidderIndex: nextBidderIndex,
+        },
       };
+    });
+  }, []);
 
-      const updatedRounds = [...prev.game.rounds, newRound];
+  const submitTricks = useCallback((tricksData: Map<string, number>) => {
+    setGameState(prev => {
+      if (!prev.game || !prev.roundState) return prev;
 
-      // Calculate totals
-      let teamATotalScore = 0;
-      let teamATotalBags = 0;
-      let teamBTotalScore = 0;
-      let teamBTotalBags = 0;
+      const roundNumber = prev.game.currentRound;
+      const bids = prev.roundState.bids;
 
-      updatedRounds.forEach(round => {
-        teamATotalScore += round.teamAScore;
-        teamATotalBags += round.teamABags;
-        teamBTotalScore += round.teamBScore;
-        teamBTotalBags += round.teamBBags;
+      // Calculate scores for each player
+      const playerData: PlayerRoundData[] = prev.game.players.map(player => {
+        const bid = bids.get(player.id) || 0;
+        const tricks = tricksData.get(player.id) || 0;
+        const score = calculatePlayerScore(bid, tricks);
+        return {
+          playerId: player.id,
+          bid,
+          tricks,
+          score,
+        };
       });
 
-      // Apply bag penalties
-      const teamABagPenalties = Math.floor(teamATotalBags / prev.game.bagPenaltyThreshold);
-      const teamBBagPenalties = Math.floor(teamBTotalBags / prev.game.bagPenaltyThreshold);
+      // Create the round
+      const newRound: Round = {
+        id: generateId(),
+        roundNumber,
+        cardsPerPlayer: roundNumber,
+        dealerPosition: prev.game.dealerPosition,
+        playerData,
+        isComplete: true,
+      };
 
-      teamATotalScore -= teamABagPenalties * 100;
-      teamBTotalScore -= teamBBagPenalties * 100;
+      // Update player total scores
+      const updatedPlayers = prev.game.players.map(player => {
+        const data = playerData.find(d => d.playerId === player.id);
+        return {
+          ...player,
+          totalScore: player.totalScore + (data?.score || 0),
+        };
+      });
 
-      // Check for winner
-      let winner: 'A' | 'B' | null = null;
-      let isComplete = false;
+      const updatedRounds = [...prev.game.rounds, newRound];
+      const nextRound = roundNumber + 1;
+      const isComplete = nextRound > 13;
 
-      if (teamATotalScore >= prev.game.targetScore || teamBTotalScore >= prev.game.targetScore) {
-        if (teamATotalScore >= prev.game.targetScore && teamBTotalScore >= prev.game.targetScore) {
-          winner = teamATotalScore >= teamBTotalScore ? 'A' : 'B';
-        } else {
-          winner = teamATotalScore >= prev.game.targetScore ? 'A' : 'B';
-        }
-        isComplete = true;
+      // Determine winner if game is complete
+      let winner: string | null = null;
+      if (isComplete) {
+        const sortedPlayers = [...updatedPlayers].sort((a, b) => b.totalScore - a.totalScore);
+        winner = sortedPlayers[0].id;
       }
+
+      // Rotate dealer for next round
+      const nextDealerPosition = ((prev.game.dealerPosition + 1) % 4) as 0 | 1 | 2 | 3;
 
       const updatedGame: Game = {
         ...prev.game,
+        players: updatedPlayers,
         rounds: updatedRounds,
-        teams: {
-          A: {
-            ...prev.game.teams.A,
-            totalScore: teamATotalScore,
-            totalBags: teamATotalBags,
-          },
-          B: {
-            ...prev.game.teams.B,
-            totalScore: teamBTotalScore,
-            totalBags: teamBTotalBags,
-          },
-        },
+        currentRound: nextRound,
+        dealerPosition: nextDealerPosition,
         winner,
         isComplete,
       };
 
+      // Initialize next round state or mark complete
+      const newRoundState: CurrentRoundState | null = isComplete
+        ? null
+        : {
+            phase: 'bidding',
+            bids: new Map(),
+            tricks: new Map(),
+            currentBidderIndex: 0,
+          };
+
       return {
         game: updatedGame,
         currentStep: isComplete ? 'complete' : 'playing',
+        roundState: newRoundState,
       };
     });
   }, []);
@@ -155,49 +163,43 @@ export const useGame = () => {
     setGameState(prev => {
       if (!prev.game || prev.game.rounds.length === 0) return prev;
 
+      const lastRound = prev.game.rounds[prev.game.rounds.length - 1];
       const updatedRounds = prev.game.rounds.slice(0, -1);
 
-      // Recalculate totals
-      let teamATotalScore = 0;
-      let teamATotalBags = 0;
-      let teamBTotalScore = 0;
-      let teamBTotalBags = 0;
-
-      updatedRounds.forEach(round => {
-        teamATotalScore += round.teamAScore;
-        teamATotalBags += round.teamABags;
-        teamBTotalScore += round.teamBScore;
-        teamBTotalBags += round.teamBBags;
+      // Revert player scores
+      const updatedPlayers = prev.game.players.map(player => {
+        const data = lastRound.playerData.find(d => d.playerId === player.id);
+        return {
+          ...player,
+          totalScore: player.totalScore - (data?.score || 0),
+        };
       });
 
-      const teamABagPenalties = Math.floor(teamATotalBags / prev.game.bagPenaltyThreshold);
-      const teamBBagPenalties = Math.floor(teamBTotalBags / prev.game.bagPenaltyThreshold);
-
-      teamATotalScore -= teamABagPenalties * 100;
-      teamBTotalScore -= teamBBagPenalties * 100;
+      // Revert dealer and round number
+      const prevDealerPosition = ((prev.game.dealerPosition - 1 + 4) % 4) as 0 | 1 | 2 | 3;
 
       const updatedGame: Game = {
         ...prev.game,
+        players: updatedPlayers,
         rounds: updatedRounds,
-        teams: {
-          A: {
-            ...prev.game.teams.A,
-            totalScore: teamATotalScore,
-            totalBags: teamATotalBags,
-          },
-          B: {
-            ...prev.game.teams.B,
-            totalScore: teamBTotalScore,
-            totalBags: teamBTotalBags,
-          },
-        },
+        currentRound: lastRound.roundNumber,
+        dealerPosition: prevDealerPosition,
         winner: null,
         isComplete: false,
+      };
+
+      // Reset to bidding phase for this round
+      const roundState: CurrentRoundState = {
+        phase: 'bidding',
+        bids: new Map(),
+        tricks: new Map(),
+        currentBidderIndex: 0,
       };
 
       return {
         game: updatedGame,
         currentStep: 'playing',
+        roundState,
       };
     });
   }, []);
@@ -206,6 +208,7 @@ export const useGame = () => {
     setGameState({
       game: null,
       currentStep: 'home',
+      roundState: null,
     });
   }, []);
 
@@ -216,12 +219,28 @@ export const useGame = () => {
     }));
   }, []);
 
+  // Validate if a bid is allowed
+  const validateBid = useCallback((bid: number, isLastBidder: boolean, currentBidsSum: number, roundNumber: number): { valid: boolean; message?: string } => {
+    if (bid < 0 || bid > roundNumber) {
+      return { valid: false, message: `Bid must be between 0 and ${roundNumber}` };
+    }
+    if (!Number.isInteger(bid)) {
+      return { valid: false, message: 'Bid must be a whole number' };
+    }
+    if (isLastBidder && currentBidsSum + bid === roundNumber) {
+      return { valid: false, message: `Total bids cannot equal ${roundNumber}. Choose another bid.` };
+    }
+    return { valid: true };
+  }, []);
+
   return {
     gameState,
     startNewGame,
-    addRound,
+    submitBid,
+    submitTricks,
     undoLastRound,
     resetGame,
     goToSetup,
+    validateBid,
   };
 };
