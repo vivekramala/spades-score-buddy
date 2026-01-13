@@ -59,12 +59,24 @@ export const getBiddingOrder = (dealerPosition: number, players: Player[]): Play
 };
 
 // Calculate score for a player's round
-export const calculatePlayerScore = (bid: number, tricks: number): number => {
-  if (tricks >= bid) {
-    // Made bid: 10 points per bid trick + 1 point per overtrick
-    return bid * 10 + (tricks - bid);
+export const calculatePlayerScore = (bid: number, tricks: number, roundNumber: number): number => {
+  if (bid === 0) {
+    // Nil bid
+    if (tricks === 0) {
+      // Made nil: score = round number
+      return roundNumber;
+    } else {
+      // Failed nil: -1 per trick won
+      return -tricks;
+    }
   } else {
-    // Set: negative points equal to bid * 10
-    return -(bid * 10);
+    // Non-zero bid
+    if (tricks >= bid) {
+      // Made bid: tricks × 2
+      return tricks * 2;
+    } else {
+      // Failed bid: negative (bid × 2)
+      return -(bid * 2);
+    }
   }
 };
