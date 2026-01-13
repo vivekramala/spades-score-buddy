@@ -1,7 +1,7 @@
 import { Player } from '@/types/game';
 import { Crown, Trophy, Sparkles, ArrowRight } from 'lucide-react';
 import Confetti from 'react-confetti';
-import { useRef, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -28,48 +28,43 @@ export const RoundCompleteModal = ({
   isLastRound,
   onNextRound,
 }: RoundCompleteModalProps) => {
-  const cardRef = useRef<HTMLDivElement>(null);
-  const [confettiDimensions, setConfettiDimensions] = useState({ width: 400, height: 500 });
+  const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
+  const [showConfetti, setShowConfetti] = useState(false);
   
   // Sort players by total score for display
   const sortedScores = [...allPlayerScores].sort((a, b) => b.totalScore - a.totalScore);
   const leaderId = highestScorer?.player.id;
 
   useEffect(() => {
-    if (open && cardRef.current) {
-      const rect = cardRef.current.getBoundingClientRect();
-      setConfettiDimensions({
-        width: rect.width,
-        height: rect.height
-      });
+    if (open) {
+      setWindowSize({ width: window.innerWidth, height: window.innerHeight });
+      setShowConfetti(true);
+      const timer = setTimeout(() => setShowConfetti(false), 4000);
+      return () => clearTimeout(timer);
     }
   }, [open]);
 
   return (
     <Dialog open={open}>
+      {/* Confetti layer - outside DialogContent so it covers full screen */}
+      {showConfetti && (
+        <div className="fixed inset-0 pointer-events-none z-[100]">
+          <Confetti
+            width={windowSize.width}
+            height={windowSize.height}
+            recycle={false}
+            numberOfPieces={150}
+            gravity={0.25}
+            initialVelocityY={15}
+            colors={['#d4af37', '#f5e6a3', '#b8860b', '#ffd700', '#fff8e7']}
+          />
+        </div>
+      )}
+      
       <DialogContent 
-        ref={cardRef}
-        className="card-surface border-gold/30 max-w-md animate-card-flip-in overflow-hidden" 
+        className="card-surface border-gold/30 max-w-md animate-card-flip-in" 
         hideCloseButton
       >
-        {open && (
-          <div 
-            className="absolute inset-0 pointer-events-none z-10 overflow-hidden"
-          >
-            <Confetti
-              width={confettiDimensions.width}
-              height={confettiDimensions.height}
-              recycle={false}
-              numberOfPieces={80}
-              gravity={0.3}
-              initialVelocityX={{ min: -5, max: 5 }}
-              initialVelocityY={{ min: 0, max: 10 }}
-              confettiSource={{ x: confettiDimensions.width / 2 - 50, y: 0, w: 100, h: 0 }}
-              colors={['#d4af37', '#f5e6a3', '#b8860b', '#ffd700']}
-            />
-          </div>
-        )}
-
         <DialogHeader>
           <div className="w-16 h-16 mx-auto mb-4 rounded-full gold-gradient flex items-center justify-center">
             <Trophy className="w-8 h-8 text-spade-black" />
@@ -79,7 +74,7 @@ export const RoundCompleteModal = ({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="my-4 space-y-4 relative z-20">
+        <div className="my-4 space-y-4">
           {/* Round Winners */}
           {roundWinners.length > 0 && (
             <div className="bg-gold/20 border border-gold/50 rounded-xl p-4 animate-slide-up">
@@ -146,7 +141,7 @@ export const RoundCompleteModal = ({
 
         <button
           onClick={onNextRound}
-          className="btn-primary w-full py-4 rounded-xl text-lg flex items-center justify-center gap-2 relative z-20"
+          className="btn-primary w-full py-4 rounded-xl text-lg flex items-center justify-center gap-2"
         >
           {isLastRound ? 'View Final Results' : 'Ready for Next Round'}
           <ArrowRight className="w-5 h-5" />
