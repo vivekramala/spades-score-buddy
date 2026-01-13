@@ -251,7 +251,7 @@
 
   /* Full card flip animation */
   .animate-card-flip-in {
-    animation: card-flip-in 1s ease-out forwards;
+    animation: card-flip-in 2s ease-out forwards;
     transform-style: preserve-3d;
   }
 
