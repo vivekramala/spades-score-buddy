@@ -249,6 +249,36 @@
     to { opacity: 1; }
   }
 
+  .animate-flip-in {
+    animation: flip-in 1s ease-out;
+  }
+
+  @keyframes flip-in {
+    from { 
+      opacity: 0; 
+      transform: rotateY(90deg) scale(0.8);
+    }
+    to { 
+      opacity: 1; 
+      transform: rotateY(0deg) scale(1);
+    }
+  }
+
+  .animate-flip-out {
+    animation: flip-out 0.5s ease-in forwards;
+  }
+
+  @keyframes flip-out {
+    from { 
+      opacity: 1; 
+      transform: rotateY(0deg) scale(1);
+    }
+    to { 
+      opacity: 0; 
+      transform: rotateY(-90deg) scale(0.8);
+    }
+  }
+
   /* 3D Transform utilities for flipping card */
   .perspective-1000 {
     perspective: 1000px;

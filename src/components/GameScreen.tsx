@@ -30,7 +30,8 @@ export const GameScreen = ({
   const [showRoundCompleteModal, setShowRoundCompleteModal] = useState(false);
   const [lastRoundResults, setLastRoundResults] = useState<{
     roundNumber: number;
-    roundWinner: { player: typeof game.players[0]; score: number } | null;
+    roundWinners: { player: typeof game.players[0]; score: number }[];
+    allPlayerScores: { player: typeof game.players[0]; score: number; totalScore: number }[];
     highestScorer: { player: typeof game.players[0]; totalScore: number } | null;
   } | null>(null);
 
@@ -50,7 +51,7 @@ export const GameScreen = ({
 
     // Calculate scores for display
     let maxScore = -Infinity;
-    let roundWinnerData: { player: typeof game.players[0]; score: number } | null = null;
+    const roundWinners: { player: typeof game.players[0]; score: number }[] = [];
 
     game.players.forEach(player => {
       const bid = bids.get(player.id) || 0;
@@ -59,7 +60,10 @@ export const GameScreen = ({
 
       if (score > maxScore) {
         maxScore = score;
-        roundWinnerData = { player, score };
+        roundWinners.length = 0;
+        roundWinners.push({ player, score });
+      } else if (score === maxScore) {
+        roundWinners.push({ player, score });
       }
     });
 
@@ -75,9 +79,18 @@ export const GameScreen = ({
       curr.totalScore > max.totalScore ? curr : max
     );
 
+    // Calculate all player scores for display
+    const allPlayerScores = game.players.map(player => {
+      const bid = bids.get(player.id) || 0;
+      const playerTricks = tricks.get(player.id) || 0;
+      const score = calculatePlayerScore(bid, playerTricks, roundNumber);
+      return { player, score, totalScore: player.totalScore + score };
+    });
+
     setLastRoundResults({
       roundNumber,
-      roundWinner: roundWinnerData,
+      roundWinners,
+      allPlayerScores,
       highestScorer: { player: highestScorer.player, totalScore: highestScorer.totalScore },
     });
     setShowRoundCompleteModal(true);
@@ -112,7 +125,8 @@ export const GameScreen = ({
       <RoundCompleteModal
         open={showRoundCompleteModal}
         roundNumber={lastRoundResults?.roundNumber || currentRound}
-        roundWinner={lastRoundResults?.roundWinner || null}
+        roundWinners={lastRoundResults?.roundWinners || []}
+        allPlayerScores={lastRoundResults?.allPlayerScores || []}
         highestScorer={lastRoundResults?.highestScorer || null}
         isLastRound={currentRound > 13}
         onNextRound={handleNextRound}
