@@ -1,14 +1,47 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useGame } from '@/hooks/useGame';
+import { HomeScreen } from '@/components/HomeScreen';
+import { GameSetup } from '@/components/GameSetup';
+import { GameScreen } from '@/components/GameScreen';
+import { WinnerScreen } from '@/components/WinnerScreen';
 
 const Index = () => {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
-      </div>
-    </div>
-  );
+  const { gameState, startNewGame, addRound, undoLastRound, resetGame, goToSetup } = useGame();
+
+  const handleStartNewGame = (playerNames: string[], targetScore: number) => {
+    startNewGame(playerNames, targetScore);
+  };
+
+  switch (gameState.currentStep) {
+    case 'home':
+      return <HomeScreen onStartGame={goToSetup} />;
+
+    case 'setup':
+      return <GameSetup onStartGame={handleStartNewGame} onBack={resetGame} />;
+
+    case 'playing':
+      if (!gameState.game) return null;
+      return (
+        <GameScreen
+          game={gameState.game}
+          onAddRound={addRound}
+          onUndo={undoLastRound}
+          onEndGame={resetGame}
+        />
+      );
+
+    case 'complete':
+      if (!gameState.game) return null;
+      return (
+        <WinnerScreen
+          game={gameState.game}
+          onNewGame={goToSetup}
+          onHome={resetGame}
+        />
+      );
+
+    default:
+      return <HomeScreen onStartGame={goToSetup} />;
+  }
 };
 
 export default Index;
