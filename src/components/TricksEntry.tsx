@@ -88,32 +88,22 @@ export const TricksEntry = ({
                   <Minus className="w-5 h-5" />
                 </button>
 
-                <div className="flex-1 flex gap-1 justify-center flex-wrap">
-                  {Array.from({ length: Math.min(roundNumber + 1, 6) }, (_, i) => i).map((n) => (
-                    <button
-                      key={n}
-                      type="button"
-                      onClick={() => setPlayerTricks(player.id, n)}
-                      className={`w-9 h-9 rounded-lg font-semibold text-sm transition-all ${
-                        playerTricks === n
-                          ? 'gold-gradient text-spade-black'
-                          : 'bg-card border border-border hover:bg-secondary'
-                      }`}
-                    >
-                      {n}
-                    </button>
-                  ))}
-                  {roundNumber >= 6 && (
-                    <input
-                      type="number"
-                      min={0}
-                      max={roundNumber}
-                      value={playerTricks}
-                      onChange={(e) => setPlayerTricks(player.id, parseInt(e.target.value) || 0)}
-                      className="w-14 h-9 rounded-lg bg-card border border-border text-center font-semibold text-sm"
-                    />
-                  )}
-                </div>
+              <div className="flex-1 flex gap-1 justify-center flex-wrap">
+                {Array.from({ length: roundNumber + 1 }, (_, i) => i).map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setPlayerTricks(player.id, n)}
+                    className={`w-8 h-8 rounded-lg font-semibold text-sm transition-all ${
+                      playerTricks === n
+                        ? 'gold-gradient text-spade-black'
+                        : 'bg-card border border-border hover:bg-secondary'
+                    }`}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
 
                 <button
                   type="button"
