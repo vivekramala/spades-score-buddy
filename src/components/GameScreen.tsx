@@ -1,7 +1,9 @@
-import { Game, CurrentRoundState, getBiddingOrder } from '@/types/game';
+import { useState, useEffect, useCallback } from 'react';
+import { Game, CurrentRoundState, getBiddingOrder, PlayerRoundData } from '@/types/game';
 import { SpadeIcon } from './SpadeIcon';
 import { BidEntry } from './BidEntry';
 import { TricksEntry } from './TricksEntry';
+import { FlippingCard } from './FlippingCard';
 import { RotateCcw, Home, Crown, Layers } from 'lucide-react';
 
 interface GameScreenProps {
@@ -23,13 +25,91 @@ export const GameScreen = ({
   onEndGame,
   validateBid,
 }: GameScreenProps) => {
+  const [showRoundResults, setShowRoundResults] = useState(false);
+  const [lastRoundResults, setLastRoundResults] = useState<{
+    roundNumber: number;
+    roundWinner: { player: typeof game.players[0]; score: number } | null;
+    highestScorer: { player: typeof game.players[0]; totalScore: number } | null;
+  } | null>(null);
+
   const currentRound = game.currentRound;
-  const dealer = game.players.find(p => p.position === game.dealerPosition);
+  const distributor = game.players.find(p => p.position === game.dealerPosition);
   const biddingOrder = getBiddingOrder(game.dealerPosition, game.players);
   const firstBidder = biddingOrder[0];
 
   // Sort players by score for leaderboard
   const sortedPlayers = [...game.players].sort((a, b) => b.totalScore - a.totalScore);
+
+  // Handle tricks submission with results display
+  const handleSubmitTricks = useCallback((tricks: Map<string, number>) => {
+    // Calculate what the results will be before submission
+    const roundNumber = game.currentRound;
+    const bids = roundState.bids;
+    
+    // Calculate scores for display
+    let maxScore = -Infinity;
+    let roundWinnerData: { player: typeof game.players[0]; score: number } | null = null;
+    
+    game.players.forEach(player => {
+      const bid = bids.get(player.id) || 0;
+      const playerTricks = tricks.get(player.id) || 0;
+      
+      // Calculate score using same logic
+      let score: number;
+      if (bid === 0) {
+        score = playerTricks === 0 ? roundNumber : -roundNumber;
+      } else {
+        if (playerTricks >= bid) {
+          score = (bid * 2) + (playerTricks - bid);
+        } else {
+          score = -bid;
+        }
+      }
+      
+      if (score > maxScore) {
+        maxScore = score;
+        roundWinnerData = { player, score };
+      }
+    });
+
+    // Calculate updated totals for highest scorer
+    const updatedTotals = game.players.map(player => {
+      const bid = bids.get(player.id) || 0;
+      const playerTricks = tricks.get(player.id) || 0;
+      
+      let score: number;
+      if (bid === 0) {
+        score = playerTricks === 0 ? roundNumber : -roundNumber;
+      } else {
+        if (playerTricks >= bid) {
+          score = (bid * 2) + (playerTricks - bid);
+        } else {
+          score = -bid;
+        }
+      }
+      
+      return { player, totalScore: player.totalScore + score };
+    });
+
+    const highestScorer = updatedTotals.reduce((max, curr) => 
+      curr.totalScore > max.totalScore ? curr : max
+    );
+
+    setLastRoundResults({
+      roundNumber,
+      roundWinner: roundWinnerData,
+      highestScorer: { player: highestScorer.player, totalScore: highestScorer.totalScore },
+    });
+    setShowRoundResults(true);
+
+    // Actually submit the tricks
+    onSubmitTricks(tricks);
+  }, [game, roundState.bids, onSubmitTricks]);
+
+  const handleResultsComplete = useCallback(() => {
+    setShowRoundResults(false);
+    setLastRoundResults(null);
+  }, []);
 
   return (
     <div className="min-h-screen felt-texture flex flex-col">
@@ -64,8 +144,8 @@ export const GameScreen = ({
       <div className="bg-secondary/30 p-3 border-b border-border/30">
         <div className="max-w-4xl mx-auto flex flex-wrap items-center justify-center gap-4 text-sm">
           <div className="flex items-center gap-2">
-            <span className="text-muted-foreground">Dealer:</span>
-            <span className="font-semibold">{dealer?.name}</span>
+            <span className="text-muted-foreground">Distributor:</span>
+            <span className="font-semibold">{distributor?.name}</span>
           </div>
           <div className="w-px h-4 bg-border" />
           <div className="flex items-center gap-2">
@@ -78,24 +158,47 @@ export const GameScreen = ({
       {/* Main Content */}
       <div className="flex-1 p-4 md:p-6 overflow-auto">
         <div className="max-w-4xl mx-auto grid lg:grid-cols-2 gap-6">
-          {/* Left: Score Entry */}
+          {/* Left: Score Entry or Flipping Card */}
           <div>
-            {roundState.phase === 'bidding' ? (
-              <BidEntry
-                players={game.players}
-                dealerPosition={game.dealerPosition}
-                roundNumber={currentRound}
-                currentBids={roundState.bids}
-                currentBidderIndex={roundState.currentBidderIndex}
-                onSubmitBid={onSubmitBid}
-                validateBid={validateBid}
+            {showRoundResults && lastRoundResults ? (
+              <FlippingCard
+                distributor={distributor}
+                firstBidder={firstBidder}
+                roundNumber={lastRoundResults.roundNumber}
+                showResults={true}
+                roundWinner={lastRoundResults.roundWinner}
+                highestScorer={lastRoundResults.highestScorer}
+                onResultsComplete={handleResultsComplete}
               />
+            ) : roundState.phase === 'bidding' ? (
+              <>
+                {/* Show flipping card on back side for pre-bid info */}
+                <div className="mb-4">
+                  <FlippingCard
+                    distributor={distributor}
+                    firstBidder={firstBidder}
+                    roundNumber={currentRound}
+                    showResults={false}
+                    roundWinner={null}
+                    highestScorer={null}
+                  />
+                </div>
+                <BidEntry
+                  players={game.players}
+                  dealerPosition={game.dealerPosition}
+                  roundNumber={currentRound}
+                  currentBids={roundState.bids}
+                  currentBidderIndex={roundState.currentBidderIndex}
+                  onSubmitBid={onSubmitBid}
+                  validateBid={validateBid}
+                />
+              </>
             ) : (
               <TricksEntry
                 players={game.players}
                 bids={roundState.bids}
                 roundNumber={currentRound}
-                onSubmitTricks={onSubmitTricks}
+                onSubmitTricks={handleSubmitTricks}
               />
             )}
           </div>

@@ -221,8 +221,8 @@ export const useGame = () => {
 
   // Validate if a bid is allowed
   const validateBid = useCallback((bid: number, isLastBidder: boolean, currentBidsSum: number, roundNumber: number): { valid: boolean; message?: string } => {
-    if (bid < 0 || bid > roundNumber) {
-      return { valid: false, message: `Bid must be between 0 and ${roundNumber}` };
+    if (bid < 0 || bid > 13) {
+      return { valid: false, message: 'Bid must be between 0 and 13' };
     }
     if (!Number.isInteger(bid)) {
       return { valid: false, message: 'Bid must be a whole number' };
