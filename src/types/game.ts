@@ -75,8 +75,8 @@ export const calculatePlayerScore = (bid: number, tricks: number, roundNumber: n
       // Made bid: tricks × 2
       return tricks * 2;
     } else {
-      // Failed bid: negative (bid × 2)
-      return -(bid * 2);
+      // Failed bid: -bid
+      return -bid;
     }
   }
 };
