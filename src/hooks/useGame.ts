@@ -10,7 +10,7 @@ export const useGame = () => {
     roundState: null,
   });
 
-  const startNewGame = useCallback((playerNames: string[]) => {
+  const startNewGame = useCallback((playerNames: string[], firstDistributor: number = 0) => {
     const players: Player[] = playerNames.map((name, index) => ({
       id: generateId(),
       name: name || `Player ${index + 1}`,
@@ -23,7 +23,7 @@ export const useGame = () => {
       players,
       rounds: [],
       currentRound: 1,
-      dealerPosition: 0, // Player 1 is first dealer
+      dealerPosition: firstDistributor as 0 | 1 | 2 | 3, // User-selected first distributor
       winner: null,
       createdAt: new Date(),
       isComplete: false,

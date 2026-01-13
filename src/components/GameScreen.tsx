@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { Game, CurrentRoundState, getBiddingOrder, calculatePlayerScore } from '@/types/game';
 import { SpadeIcon } from './SpadeIcon';
 import { BidEntry } from './BidEntry';
 import { TricksEntry } from './TricksEntry';
-import { FlippingCard } from './FlippingCard';
+import { RoundStartModal } from './RoundStartModal';
+import { RoundCompleteModal } from './RoundCompleteModal';
 import { RotateCcw, Home, Crown, Layers } from 'lucide-react';
 
 interface GameScreenProps {
@@ -25,7 +26,8 @@ export const GameScreen = ({
   onEndGame,
   validateBid,
 }: GameScreenProps) => {
-  const [showRoundResults, setShowRoundResults] = useState(false);
+  const [showRoundStartModal, setShowRoundStartModal] = useState(true);
+  const [showRoundCompleteModal, setShowRoundCompleteModal] = useState(false);
   const [lastRoundResults, setLastRoundResults] = useState<{
     roundNumber: number;
     roundWinner: { player: typeof game.players[0]; score: number } | null;
@@ -78,19 +80,44 @@ export const GameScreen = ({
       roundWinner: roundWinnerData,
       highestScorer: { player: highestScorer.player, totalScore: highestScorer.totalScore },
     });
-    setShowRoundResults(true);
+    setShowRoundCompleteModal(true);
 
     // Actually submit the tricks
     onSubmitTricks(tricks);
   }, [game, roundState.bids, onSubmitTricks]);
 
-  const handleResultsComplete = useCallback(() => {
-    setShowRoundResults(false);
+  const handleNextRound = useCallback(() => {
+    setShowRoundCompleteModal(false);
     setLastRoundResults(null);
+    // Show start modal for next round
+    setShowRoundStartModal(true);
+  }, []);
+
+  const handleReadyForBidding = useCallback(() => {
+    setShowRoundStartModal(false);
   }, []);
 
   return (
     <div className="min-h-screen felt-texture flex flex-col">
+      {/* Round Start Modal */}
+      <RoundStartModal
+        open={showRoundStartModal && roundState.phase === 'bidding'}
+        roundNumber={currentRound}
+        distributor={distributor}
+        firstBidder={firstBidder}
+        onReady={handleReadyForBidding}
+      />
+
+      {/* Round Complete Modal */}
+      <RoundCompleteModal
+        open={showRoundCompleteModal}
+        roundNumber={lastRoundResults?.roundNumber || currentRound}
+        roundWinner={lastRoundResults?.roundWinner || null}
+        highestScorer={lastRoundResults?.highestScorer || null}
+        isLastRound={currentRound > 13}
+        onNextRound={handleNextRound}
+      />
+
       {/* Header */}
       <header className="p-4 border-b border-border/50">
         <div className="flex items-center justify-between max-w-4xl mx-auto">
@@ -136,41 +163,18 @@ export const GameScreen = ({
       {/* Main Content */}
       <div className="flex-1 p-4 md:p-6 overflow-auto">
         <div className="max-w-4xl mx-auto grid lg:grid-cols-2 gap-6">
-          {/* Left: Score Entry or Flipping Card */}
+          {/* Left: Score Entry */}
           <div>
-            {showRoundResults && lastRoundResults ? (
-              <FlippingCard
-                distributor={distributor}
-                firstBidder={firstBidder}
-                roundNumber={lastRoundResults.roundNumber}
-                showResults={true}
-                roundWinner={lastRoundResults.roundWinner}
-                highestScorer={lastRoundResults.highestScorer}
-                onResultsComplete={handleResultsComplete}
+            {roundState.phase === 'bidding' ? (
+              <BidEntry
+                players={game.players}
+                dealerPosition={game.dealerPosition}
+                roundNumber={currentRound}
+                currentBids={roundState.bids}
+                currentBidderIndex={roundState.currentBidderIndex}
+                onSubmitBid={onSubmitBid}
+                validateBid={validateBid}
               />
-            ) : roundState.phase === 'bidding' ? (
-              <>
-                {/* Show flipping card on back side for pre-bid info */}
-                <div className="mb-4">
-                  <FlippingCard
-                    distributor={distributor}
-                    firstBidder={firstBidder}
-                    roundNumber={currentRound}
-                    showResults={false}
-                    roundWinner={null}
-                    highestScorer={null}
-                  />
-                </div>
-                <BidEntry
-                  players={game.players}
-                  dealerPosition={game.dealerPosition}
-                  roundNumber={currentRound}
-                  currentBids={roundState.bids}
-                  currentBidderIndex={roundState.currentBidderIndex}
-                  onSubmitBid={onSubmitBid}
-                  validateBid={validateBid}
-                />
-              </>
             ) : (
               <TricksEntry
                 players={game.players}
@@ -276,4 +280,3 @@ export const GameScreen = ({
     </div>
   );
 };
-

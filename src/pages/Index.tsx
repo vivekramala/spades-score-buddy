@@ -16,8 +16,8 @@ const Index = () => {
     validateBid,
   } = useGame();
 
-  const handleStartNewGame = (playerNames: string[]) => {
-    startNewGame(playerNames);
+  const handleStartNewGame = (playerNames: string[], firstDistributor: number) => {
+    startNewGame(playerNames, firstDistributor);
   };
 
   switch (gameState.currentStep) {

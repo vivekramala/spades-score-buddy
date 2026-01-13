@@ -4,7 +4,7 @@ import { ChevronLeft, Users } from 'lucide-react';
 import { StartGameModal } from './StartGameModal';
 
 interface GameSetupProps {
-  onStartGame: (playerNames: string[]) => void;
+  onStartGame: (playerNames: string[], firstDistributor: number) => void;
   onBack: () => void;
 }
 
@@ -23,9 +23,9 @@ export const GameSetup = ({ onStartGame, onBack }: GameSetupProps) => {
     setShowStartModal(true);
   };
 
-  const handleConfirmStart = () => {
+  const handleConfirmStart = (firstDistributor: number) => {
     const names = playerNames.map((name, i) => name.trim() || `Player ${i + 1}`);
-    onStartGame(names);
+    onStartGame(names, firstDistributor);
   };
 
   return (
@@ -59,7 +59,7 @@ export const GameSetup = ({ onStartGame, onBack }: GameSetupProps) => {
             <div>
               <h2 className="font-display text-xl font-bold">Players</h2>
               <p className="text-sm text-muted-foreground">
-                Player 1 will be the first distributor
+                Enter names in clockwise seating order
               </p>
             </div>
           </div>
@@ -67,8 +67,8 @@ export const GameSetup = ({ onStartGame, onBack }: GameSetupProps) => {
           <div className="grid md:grid-cols-2 gap-4">
             {[0, 1, 2, 3].map((index) => (
               <div key={index} className="animate-slide-up" style={{ animationDelay: `${index * 0.1}s` }}>
-                <label className="block text-sm font-medium mb-2 text-muted-foreground">
-                  Player {index + 1} {index === 0 && <span className="text-gold">(First Distributor)</span>}
+              <label className="block text-sm font-medium mb-2 text-muted-foreground">
+                  Player {index + 1}
                 </label>
                 <input
                   type="text"
